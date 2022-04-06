@@ -3,6 +3,7 @@ Unit tests for pdoc package.
 """
 import doctest
 import enum
+import importlib
 import inspect
 import os
 import shutil
@@ -938,6 +939,57 @@ class ApiTest(unittest.TestCase):
 
         func = pdoc.Function('f', mod, eval("lambda a, /: None"))
         self.assertEqual(func.params(), ['a', '/'])
+
+    @unittest.skipIf(sys.version_info < (3, 9), "built-in types as annotations unsupported in < py3.9")
+    def test_python39_generics(self):
+        m_name = 'M'
+        m_spec = importlib.util.spec_from_loader(m_name, loader=None)
+        m_module = importlib.util.module_from_spec(m_spec)
+        code = '''
+from typing import Dict, List, Set, Tuple
+class A:
+    a_list: list[str] = []
+    a_dict: dict[int, str] = {}
+    a_set: set[float] = set()
+    a_tuple: tuple[bool] = ()
+
+class B:
+    a_list: List[str] = []
+    a_dict: Dict[int, str] = {}
+    a_set: Set[float] = set()
+    a_tuple: Tuple[bool] = ()
+'''
+        exec(code, m_module.__dict__)
+
+        sys.modules[m_name] = m_module
+
+        try:
+            mod = pdoc.Module('M', context=pdoc.Context())
+
+            pdoc_obj = pdoc.Class('A', mod, m_module.A)
+            self.assertEqual([v.qualname for v in pdoc_obj.class_variables()],
+                ['A.a_dict', 'A.a_list', 'A.a_set', 'A.a_tuple']
+            )
+            self.assertEqual(pdoc_obj.doc['a_dict'].type_annotation(),
+                'dict[int,\xa0str]'  # 0xa0 is a non-breaking space
+            )
+            self.assertEqual(pdoc_obj.doc['a_list'].type_annotation(), 'list[str]')
+            self.assertEqual(pdoc_obj.doc['a_set'].type_annotation(), 'set[float]')
+            self.assertEqual(pdoc_obj.doc['a_tuple'].type_annotation(), 'tuple[bool]')
+
+            pdoc_obj = pdoc.Class('B', mod, m_module.B)
+            self.assertEqual([v.qualname for v in pdoc_obj.class_variables()],
+                ['B.a_dict', 'B.a_list', 'B.a_set', 'B.a_tuple']
+            )
+            self.assertEqual(pdoc_obj.doc['a_dict'].type_annotation(),
+                'Dict[int,\xa0str]'  # 0xa0 is a non-breaking space
+            )
+            self.assertEqual(pdoc_obj.doc['a_list'].type_annotation(), 'List[str]')
+            self.assertEqual(pdoc_obj.doc['a_set'].type_annotation(), 'Set[float]')
+            self.assertEqual(pdoc_obj.doc['a_tuple'].type_annotation(), 'Tuple[bool]')
+
+        finally:
+            del sys.modules[m_name]
 
     def test_Function_return_annotation(self):
         def f() -> typing.List[typing.Union[str, pdoc.Doc]]: pass

@@ -481,15 +481,15 @@ def _formatannotation_py39plus(annotation, base_module=None):
     if getattr(annotation, '__module__', None) == 'typing':
         return repr(annotation).replace('typing.', '')
     if isinstance(annotation, type):
-        if annotation.__module__ == 'builtins':
+        if annotation.__origin__ in (dict, tuple, list, set):
             return str(annotation)
-        if annotation.__module__ == base_module:
+        if annotation.__module__ in (base_module, 'builtins'):
             return annotation.__qualname__
         return annotation.__module__+'.'+annotation.__qualname__
     return repr(annotation)
 
 
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 9):
     _inspect_formatannotation = _formatannotation_py39plus
 else:
     _inspect_formatannotation = inspect.formatannotation
