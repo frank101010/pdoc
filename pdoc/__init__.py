@@ -481,7 +481,7 @@ def _formatannotation_py39plus(annotation, base_module=None):
     if getattr(annotation, '__module__', None) == 'typing':
         return repr(annotation).replace('typing.', '')
     if isinstance(annotation, type):
-        if annotation.__origin__ in (dict, tuple, list, set):
+        if hasattr(annotation, '__origin__') and annotation.__origin__ in (dict, tuple, list, set):
             return str(annotation)
         if annotation.__module__ in (base_module, 'builtins'):
             return annotation.__qualname__
