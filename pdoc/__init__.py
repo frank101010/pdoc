@@ -494,6 +494,7 @@ if sys.version_info >= (3, 9):
 else:
     _inspect_formatannotation = inspect.formatannotation
 
+
 class Doc:
     """
     A base class for all documentation objects.
