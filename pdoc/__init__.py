@@ -473,6 +473,27 @@ def link_inheritance(context: Context = None):
         module._link_inheritance()
 
 
+def _formatannotation_py39plus(annotation, base_module=None):
+    """
+    A copy of Python's inspect.formatannotation implementation, but with
+    Python >=3.9 builtin generics handled differently.
+    """
+    if getattr(annotation, '__module__', None) == 'typing':
+        return repr(annotation).replace('typing.', '')
+    if isinstance(annotation, type):
+        if annotation.__module__ == 'builtins':
+            return str(annotation)
+        if annotation.__module__ == base_module:
+            return annotation.__qualname__
+        return annotation.__module__+'.'+annotation.__qualname__
+    return repr(annotation)
+
+
+if sys.version_info >= (3, 8):
+    _inspect_formatannotation = _formatannotation_py39plus
+else:
+    _inspect_formatannotation = inspect.formatannotation
+
 class Doc:
     """
     A base class for all documentation objects.
@@ -1287,7 +1308,7 @@ def _formatannotation(annot):
         if (getattr(a, '__origin__', None) is typing.Union and
                 len(a.__args__) == 2 and
                 type(None) in a.__args__):
-            t = inspect.formatannotation(
+            t = _inspect_formatannotation(
                 maybe_replace_reprs(next(filter(None, a.__args__))))
             return force_repr(f'Optional[{t}]')
         # typing.NewType('T', foo) -> T
@@ -1305,7 +1326,7 @@ def _formatannotation(annot):
             a = a.copy_with(tuple([maybe_replace_reprs(arg) for arg in a.__args__]))
         return a
 
-    return str(inspect.formatannotation(maybe_replace_reprs(annot)))
+    return str(_inspect_formatannotation(maybe_replace_reprs(annot)))
 
 
 class Function(Doc):
